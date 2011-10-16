@@ -1,0 +1,118 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Eventful demo - Google Analytics asynchronous event tracking and domain binding made easy!</title>
+
+
+
+
+</head>
+
+<body>
+
+<h1>Eventful demo</h1>
+<p><a href="http://irama.org/web/dhtml/eventful/">Eventful</a> makes Google Analytics asynchronous event tracking and domain binding easy!</p>
+
+<h2>Test links:</h2>
+<ul>
+    <li><a href="http://irama.org/" id="home-link">Home link (with id)</a></li>
+    <li>Three links to the same:<ul>
+        <li><a href="http://irama.org/dhtml/">First link to the same</a></li>
+        <li><a href="http://irama.org/dhtml/">Second link to the same</a></li>
+        <li><a href="http://irama.org/dhtml/">Third link to the same</a></li>
+    </ul></li>
+    <li>Two similar links:<ul>
+    <li><a href="/">Back to domain root</a></li>
+    <li><a href="http://irama.org/">Back to domain root (explicitly set to http://irama.org)</a></li>
+    </ul></li>
+    <li><a href="http://google.com.au">External link (google.com.au)</a></li>
+</ul>
+
+<h2>Forms:</h2>
+<form action="http://irama.org/">
+	<input type="submit" value="Default me" />
+</form>
+
+<form method="get" action="http://irama.org/">
+	<input type="submit" value="GET me" />
+</form>
+
+<form method="post" action="http://irama.org/">
+	<input type="submit" value="POST me" />
+</form>
+
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.js"></script>
+<script type="text/javascript" src="jquery.url.js"></script>
+<script type="text/javascript" src="jquery.eventful.js"></script>
+
+
+<script type="text/javascript">
+// Google Analytics configuration (requires jquery.eventful.js)
+(function($) {// start closure
+	/**
+	 * Set debugMode to false when you are ready to track for realz.
+	 * While debugMode = true, eventful will only log events to console
+	 * and never send requests to Google Analytics.
+	 */
+	$.eventful = {};
+	$.eventful.debugMode = true;
+	$.eventful.gaID = 'UA-12345-1';
+	
+	// Specify 'internal' sites
+		var internalSites = [
+			'http://irama.org',
+			'https://github.com/irama'
+		];
+	
+	// Glue all 'internal' domains together so they can be tracked under the one GA profile
+		$.setInternalSites(internalSites);
+		$.glueSites();
+	
+	
+	// Track home link
+		$('#home-link').trackEvent('click', 'home-link');
+	
+	// Track internal links
+		$('a:internal').trackEvent('click', 'internal-link'); // :internal pseudo-selector established using $.setInternalSites
+		
+	// Track external links
+		$('a:external').trackEvent('click', 'external-link'); // :external pseudo-selector established using $.setInternalSites
+		
+	// Track post form submissions
+		$('form[method="post"]').trackEvent('submit', 'forms');
+		
+	// Track clicks on the leadin headings
+		$('h2').trackEvent('click', 'leadin-headings');
+		
+	// Track clicks on the submit button from the second form
+		$('form:eq(1) input[type="submit"]').trackEvent('click', 'form-submit-button');
+	
+})(jQuery); /* end closure */
+</script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(
+	  ['_setAccount', $.eventful.gaID],
+	  ['_trackPageview']
+  );
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</body>
+</html>
