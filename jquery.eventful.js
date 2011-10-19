@@ -3,9 +3,10 @@
  * Uses the new 'asynchronous' GA tracking syntax.
  * 
  * jquery.eventful.js
- * @version 0.1
+ * @version 0.2
  * Changelog:
  *   *  0.1 Initial implementation.
+ *   *  0.2 Ironed out bugs with GA call (thanks bboyle). Added delay on default behaviours so GA has time to phone home before navigating away.
  *
  * @author Andrew Ramsden <http://irama.org/>
  * @see http://irama.org/web/dhtml/eventful/
@@ -27,12 +28,13 @@
 jQuery.eventful = (typeof jQuery.eventful !== 'undefined') ? jQuery.eventful : {} ;
 jQuery.eventful.debugMode = (typeof jQuery.eventful.debugMode !== 'undefined') ? jQuery.eventful.debugMode : false ;
 jQuery.eventful.internalSites = [window.location.protocol+'//'+window.location.hostname];
+jQuery.eventful.tempNode = null;
 //jQuery.eventful.internalSitesSelector = 'a[href^="'+jQuery.eventful.internalSites[0]+'"], form[target^="'+jQuery.eventful.internalSites[0]+'"]';
-
-_gaq = (typeof _gaq !== 'undefined') ? _gaq : [];
 
 
 (function($) {// start closure
+
+_gaq = (typeof _gaq !== 'undefined') ? _gaq : [];
 
 
 /**
@@ -152,7 +154,6 @@ $.expr[':'].external = function(obj) {
 $.fn.trackEvent = function(events, category, action, label, value, boolStack) {
 	
 	
-	
 	$(this).each(function(){
 		
 		//liveSelector = $(this).selector;
@@ -176,9 +177,9 @@ $.fn.trackEvent = function(events, category, action, label, value, boolStack) {
 			}
 		
 		// Init default values
-			var action = (typeof action === 'undefined' || action === null) ? '' : action ;
-			var label = (typeof label === 'undefined' || label === null) ? '' : label ;
-			var value = (typeof value === 'undefined' || value === null) ? '' : value ;
+			var action = (typeof action === 'undefined' || action === null) ? null : action ;
+			var label = (typeof label === 'undefined' || label === null) ? null : label ;
+			var value = (typeof value === 'undefined' || value === null) ? null : value ;
 		
 		// Add event tracker
 			$(this).bind(events, {
@@ -187,6 +188,8 @@ $.fn.trackEvent = function(events, category, action, label, value, boolStack) {
 				'label': label,
 				'value': value
 			}, _trackAnEvent);
+		
+		//$.eventfulDebug(this);
 		
 		if ($.eventful.debugMode) {
 			// flag with category (handy for debugging)
@@ -207,12 +210,26 @@ $.fn.trackEvent = function(events, category, action, label, value, boolStack) {
 /**
  * Internal function for tracking an event.
  * Don't use this function directly, use $(this).trackEvent() plugin to add event tracking.
+ * 
+ * For normal events (the naturally triggered event), prevent the default
+ * behaviour and ping Google instead. For the follow action, allow the Default
+ * after a delay.
  */
 _trackAnEvent = function (evtObj) {
+	
+	// if tempNode is set, don't do anything else, just return and let the default behaviour kick in
+		if ($.eventful.tempNode !== null) {
+			$.eventful.tempNode = null;
+			//console.log('allowing default');
+			return true;
+		}
+	
+	//console.log('evt started');
+	
 	var evtTarget = '';
 	
-	if (evtObj.data.action !== '') {
-		var action = action;
+	if (evtObj.data.action !== null) {
+		var action = evtObj.data.action;
 	} else { // generate a unique reference for this action
 		var targetIndex = '';
 		switch (evtObj.target.nodeName) {
@@ -254,16 +271,40 @@ _trackAnEvent = function (evtObj) {
 	}
 	
 	var category = evtObj.data.category; 
-	var label = (evtObj.data.label !== '') ? label : 'On page: ' + window.location.href;
+	var label = (evtObj.data.label !== null) ? label : 'On page: ' + window.location.href;
 	var value = evtObj.data.value;
 	
 	
-	if ($.eventful.debugMode) {
-		$.eventfulDebug('_trackEvent; category: '+category+'; action: '+action+'; label: '+label+'; value: '+value+';');// return false;
-	} else {
-		_gaq.push(['_trackEvent', category, action, label, value]);
+	
+	$.eventfulDebug('_trackEvent; category: '+category+'; action: '+action+'; label: '+label+'; value: '+value+';');// return false;
+	
+	if (! $.eventful.debugMode) {
+		
+		// Prevent default behaviours and handlers
+			evtObj.preventDefault();
+			evtObj.stopPropagation();
+		
+		// Ping Google
+			_gaq.push(['_trackEvent', category, action, label, value]);
+		
+		// Store the currently affected node, and delay to give GA a chance to phone home
+			$.eventful.tempNode = evtObj;
+			window.setTimeout(_reTriggerEventDefault, 200);
 	}
-}
+	
+	// Allow default behaviour in debug mode
+};
+
+/**
+ * An internal function used to retrigger the native default behaviours for an
+ * element we are tracking.
+ */
+_reTriggerEventDefault = function () {
+	var evtObj = $.eventful.tempNode;
+		//console.log (evtObj.type);
+	//$(evtObj.target).trigger(evtObj.type, [allowDefault=true]);
+	$(evtObj.target).get(0)[ evtObj.type ](); // trigger native behaviours
+};
 
 $(function(){
 	if ($.eventful.debugMode) { // block all links and form submissions while in debugMode
@@ -309,3 +350,4 @@ $.fn.accessibleText = function() {
 
 
 })(jQuery); /* end closure */
+
